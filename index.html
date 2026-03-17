@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UL - Smart Spaces</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap');
+
+        :root {
+            --bg-oscuro: #050505;
+            --blanco: #ffffff;
+            --texto-secundario: #888888;
+            --azul-brillo: rgba(0, 68, 129, 0.50); /* Azul base intenso */
+            --rojo-suave: #ff4d4d;
+            --amarillo-fosfo: #d4ff33;
+            --borde-sutil: rgba(255, 255, 255, 0.08);
+            --bg-glass: rgba(18, 18, 18, 0.65);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        body {
+            background-color: var(--bg-oscuro);
+            color: var(--blanco);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* CAPA 1: La malla estática tecnológica */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            background-image: 
+                linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+            background-size: 40px 40px, 40px 40px;
+            z-index: -1;
+        }
+
+        /* CAPA 2: El brillo azul (Animación Fluida por GPU) */
+        body::after {
+            content: '';
+            position: fixed;
+            top: -10%; left: -10%; width: 120vw; height: 120vh;
+            background: radial-gradient(circle at 50% 15%, rgba(0, 68, 129, 0.65) 0%, transparent 65%);
+            z-index: -2;
+            animation: respiracionFluida 10s ease-in-out infinite alternate;
+        }
+
+        @keyframes respiracionFluida {
+            0% { opacity: 0.3; transform: scale(0.98); }
+            100% { opacity: 1; transform: scale(1.02); }
+        }
+
+        header {
+            width: 100%;
+            padding: 40px 0 20px;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+            z-index: 10;
+        }
+
+        .header-logo {
+            height: 50px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        }
+
+        header h1 {
+            font-size: 32px;
+            font-weight: 800;
+            letter-spacing: -1px;
+            margin-bottom: 5px;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.5);
+        }
+
+        header span {
+            color: var(--amarillo-fosfo);
+            text-shadow: 0 0 15px rgba(212, 255, 51, 0.4);
+        }
+
+        header p {
+            color: var(--texto-secundario);
+            font-size: 14px;
+            font-weight: 300;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+
+        .container {
+            max-width: 1000px;
+            width: 90%;
+            margin: 20px auto 60px;
+            text-align: center;
+            position: relative;
+            z-index: 10;
+        }
+
+        .section-title {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 30px;
+            color: var(--blanco);
+        }
+
+        /* Vistas animadas */
+        .vista {
+            display: none;
+            animation: fadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        .vista.activa {
+            display: block;
+        }
+
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(30px) scale(0.98); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        /* Glassmorphism unificado para todas las tarjetas */
+        .card, .card-login, .card-reserva, .card-gracias, .modal-content {
+            background: var(--bg-glass);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--borde-sutil);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+            border-radius: 24px;
+        }
+
+        /* Vista Login */
+        .card-login {
+            padding: 50px 30px;
+            max-width: 400px;
+            margin: 0 auto;
+        }
+
+        .input-matricula {
+            width: 100%;
+            padding: 15px 20px;
+            background-color: rgba(0,0,0,0.4);
+            border: 1px solid var(--borde-sutil);
+            color: var(--blanco);
+            border-radius: 12px;
+            font-size: 16px;
+            margin-bottom: 20px;
+            outline: none;
+            text-align: center;
+            letter-spacing: 2px;
+            transition: all 0.3s ease;
+        }
+
+        .input-matricula:focus {
+            border-color: var(--amarillo-fosfo);
+            box-shadow: 0 0 15px rgba(212, 255, 51, 0.1);
+            background-color: rgba(0,0,0,0.6);
+        }
+
+        #error-login {
+            color: var(--rojo-suave);
+            font-size: 13px;
+            margin-bottom: 15px;
+            display: none;
+        }
+
+        /* Grid de Espacios */
+        .espacios-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 24px;
+        }
+
+        .card {
+            padding: 30px 25px;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .card:hover {
+            transform: translateY(-8px);
+            border-color: rgba(255,255,255,0.2);
+            box-shadow: 0 15px 35px rgba(0,0,0,0.6), 0 0 20px rgba(0, 68, 129, 0.4);
+            background: rgba(25, 25, 25, 0.8);
+        }
+
+        .card h3 {
+            font-size: 22px;
+            margin-bottom: 10px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+        }
+
+        .status {
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            padding: 6px 12px;
+            border-radius: 50px;
+            margin-bottom: 25px;
+        }
+
+        .status.disponible {
+            background: rgba(212, 255, 51, 0.1);
+            color: var(--amarillo-fosfo);
+            border: 1px solid rgba(212, 255, 51, 0.2);
+        }
+
+        .status.ocupado {
+            background: rgba(255, 77, 77, 0.1);
+            color: var(--rojo-suave);
+            border: 1px solid rgba(255, 77, 77, 0.2);
+        }
+
+        .card.ocupado {
+            opacity: 0.5;
+            pointer-events: none;
+            filter: grayscale(80%);
+        }
+
+        /* Botones */
+        button {
+            background-color: var(--blanco);
+            color: var(--bg-oscuro);
+            border: none;
+            padding: 14px 28px;
+            border-radius: 50px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 14px;
+            transition: all 0.3s ease;
+            width: 100%;
+            letter-spacing: 0.5px;
+        }
+
+        button.btn-primario {
+            background-color: var(--amarillo-fosfo);
+            color: var(--bg-oscuro);
+            box-shadow: 0 4px 15px rgba(212, 255, 51, 0.2);
+        }
+
+        button.btn-primario:hover {
+            box-shadow: 0 0 25px rgba(212, 255, 51, 0.6);
+            transform: scale(1.03);
+            background-color: #e2ff66;
+        }
+
+        button.btn-peligro {
+            background-color: transparent;
+            color: var(--rojo-suave);
+            border: 1px solid var(--rojo-suave);
+            margin-top: 15px;
+        }
+
+        button.btn-peligro:hover {
+            background-color: rgba(255, 77, 77, 0.15);
+            box-shadow: 0 0 15px rgba(255, 77, 77, 0.3);
+        }
+
+        /* Selector de Tiempo y Advertencia */
+        .tiempo-opciones {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin: 30px 0;
+            flex-wrap: wrap;
+        }
+
+        .btn-tiempo {
+            background-color: rgba(0,0,0,0.3);
+            color: var(--blanco);
+            border: 1px solid var(--borde-sutil);
+            width: auto;
+            flex: 1;
+            min-width: 130px;
+            padding: 18px 20px;
+            font-size: 16px;
+            backdrop-filter: blur(4px);
+        }
+
+        .btn-tiempo:hover {
+            border-color: rgba(255,255,255,0.3);
+            background-color: rgba(255,255,255,0.05);
+        }
+
+        .btn-tiempo.seleccionado {
+            background-color: var(--blanco);
+            color: var(--bg-oscuro);
+            border-color: var(--blanco);
+            box-shadow: 0 0 20px rgba(255,255,255,0.2);
+        }
+
+        .alerta-sancion {
+            background: rgba(255, 77, 77, 0.08);
+            border: 1px solid rgba(255, 77, 77, 0.2);
+            color: #ff8080;
+            padding: 15px;
+            border-radius: 12px;
+            font-size: 13px;
+            max-width: 500px;
+            margin: 0 auto 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            backdrop-filter: blur(4px);
+        }
+
+        /* Reserva Activa, QR y Progreso */
+        .card-reserva, .card-gracias {
+            padding: 50px 30px;
+            max-width: 500px;
+            margin: 0 auto;
+        }
+
+        #qr-container {
+            background-color: rgba(255,255,255,0.95);
+            padding: 20px;
+            display: inline-block;
+            margin: 25px 0;
+            border-radius: 16px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.8);
+            border: 2px solid rgba(255,255,255,0.1);
+        }
+
+        .tiempo-restante {
+            color: var(--amarillo-fosfo);
+            font-size: 56px;
+            font-weight: 800;
+            font-family: 'Inter', monospace;
+            letter-spacing: -2px;
+            margin-bottom: 10px;
+            text-shadow: 0 0 25px rgba(212, 255, 51, 0.4);
+            transition: color 0.5s ease, text-shadow 0.5s ease;
+        }
+
+        .progress-container {
+            width: 100%;
+            height: 6px;
+            background-color: rgba(0,0,0,0.5);
+            border-radius: 10px;
+            margin-bottom: 30px;
+            overflow: hidden;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .progress-bar {
+            height: 100%;
+            width: 100%;
+            background-color: var(--amarillo-fosfo);
+            transition: width 1s linear, background-color 0.5s ease, box-shadow 0.5s ease;
+            box-shadow: 0 0 10px var(--amarillo-fosfo);
+        }
+
+        .info-reserva {
+            color: var(--texto-secundario);
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+
+        /* Modal Personalizado */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(8px);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            padding: 40px;
+            text-align: center;
+            max-width: 400px;
+            width: 90%;
+            border: 1px solid rgba(255, 77, 77, 0.4);
+            box-shadow: 0 20px 60px rgba(255, 77, 77, 0.15);
+            animation: fadeUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        .modal-content h3 {
+            color: var(--rojo-suave);
+            font-size: 24px;
+            margin-bottom: 15px;
+            text-shadow: 0 0 15px rgba(255, 77, 77, 0.3);
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQgFY_ZhyHLKK_DZdY2EsOITq98fKA5RKWRrA&s" alt="Logo Universidad de la Libertad" class="header-logo">
+        <h1>U<span>L</span></h1>
+        <p>Smart Spaces</p>
+    </header>
+
+    <div class="container">
+        
+        <div id="vista-login" class="vista activa">
+            <div class="card-login">
+                <h2 style="font-size: 24px; margin-bottom: 10px;">Acceso Universitario</h2>
+                <p style="color: var(--texto-secundario); margin-bottom: 30px; font-size: 14px;">Ingresa tu matrícula para reservar espacios</p>
+                
+                <p id="error-login">Por favor, ingresa una matrícula válida.</p>
+                <input type="text" id="input-matricula" class="input-matricula" placeholder="Ej. AL123456" autocomplete="off">
+                
+                <button class="btn-primario" onclick="iniciarSesion()">Ingresar al Sistema</button>
+            </div>
+        </div>
+
+        <div id="vista-espacios" class="vista">
+            <h2 class="section-title">Espacios Disponibles</h2>
+            <div class="espacios-grid" id="lista-espacios"></div>
+        </div>
+
+        <div id="vista-tiempo" class="vista">
+            <h2 class="section-title" id="titulo-espacio-seleccionado">Configurar Reserva</h2>
+            <p style="color: var(--texto-secundario); margin-bottom: 20px;">Selecciona el tiempo que ocuparás el espacio.</p>
+            
+            <div class="alerta-sancion">
+                <span>⚠️</span> Recuerda: El no registrar tu salida al terminar tu tiempo generará una sanción.
+            </div>
+
+            <div class="tiempo-opciones">
+                <button class="btn-tiempo" onclick="seleccionarTiempo(30, this)">30 Minutos</button>
+                <button class="btn-tiempo" onclick="seleccionarTiempo(60, this)">1 Hora</button>
+                <button class="btn-tiempo" onclick="seleccionarTiempo(90, this)">1.5 Horas</button>
+                <button class="btn-tiempo" onclick="seleccionarTiempo(120, this)">2 Horas</button>
+            </div>
+
+            <div style="max-width: 300px; margin: 0 auto;">
+                <button class="btn-primario" onclick="confirmarReserva()" id="btn-confirmar" style="display: none;">Generar Acceso QR</button>
+                <button class="btn-peligro" onclick="cancelarProceso()">Cancelar</button>
+            </div>
+        </div>
+
+        <div id="reserva-activa" class="vista">
+            <div class="card-reserva">
+                <h2 style="font-size: 28px; margin-bottom: 5px;">Acceso Generado</h2>
+                <p class="info-reserva">Espacio asignado: <b id="nombre-reserva-activa" style="color: var(--blanco);"></b></p>
+                
+                <div id="qr-container"></div>
+                
+                <p style="color: var(--texto-secundario); font-size: 14px; text-transform: uppercase; letter-spacing: 1px;">Tiempo Restante</p>
+                <div class="tiempo-restante" id="timer">00:00</div>
+                
+                <div class="progress-container">
+                    <div class="progress-bar" id="barra-progreso"></div>
+                </div>
+                
+                <button class="btn-peligro" onclick="simularCheckOut()" style="max-width: 250px;">Terminar Reserva Ahora</button>
+            </div>
+        </div>
+
+        <div id="vista-gracias" class="vista">
+            <div class="card-gracias">
+                <h2 style="color: var(--amarillo-fosfo); font-size: 24px; margin-bottom: 20px;">¡Gracias por tu reserva!</h2>
+                <p style="color: var(--texto-secundario); font-size: 16px; margin-bottom: 30px; line-height: 1.6;">
+                    Agradecemos tu puntualidad y responsabilidad al liberar el espacio a tiempo. 
+                    ¡Esperamos que hayas tenido una sesión productiva!
+                </p>
+                <button class="btn-primario" onclick="volverInicio()" style="max-width: 250px;">Volver al Inicio</button>
+            </div>
+        </div>
+
+    </div>
+
+    <div id="modal-tiempo-agotado" class="modal-overlay">
+        <div class="modal-content">
+            <h3>¡Tiempo Finalizado!</h3>
+            <p style="color: var(--texto-secundario); margin-bottom: 25px; line-height: 1.5;">Tu tiempo de reserva ha concluido. El espacio será liberado automáticamente en el sistema.</p>
+            <button class="btn-primario" onclick="cerrarModalYCheckOut()">Entendido</button>
+        </div>
+    </div>
+
+    <script>
+        // --- EVENTO PARA LA TECLA ENTER ---
+        document.getElementById('input-matricula').addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') {
+                e.preventDefault(); // Evita que recargue la página si estuviera en un formulario
+                iniciarSesion();
+            }
+        });
+
+        let espacios = [
+            { id: 1, nombre: "Cubículo 1", disponible: true },
+            { id: 2, nombre: "Cubículo 2", disponible: true },
+            { id: 3, nombre: "Cubículo 3", disponible: false },
+            { id: 4, nombre: "Cubículo 4", disponible: true }
+        ];
+
+        let espacioSeleccionado = null;
+        let tiempoSeleccionado = null;
+        let timerInterval;
+        let totalSegundosReserva = 0;
+
+        function cambiarVista(vistaId) {
+            document.querySelectorAll('.vista').forEach(v => v.classList.remove('activa'));
+            document.getElementById(vistaId).classList.add('activa');
+        }
+
+        function iniciarSesion() {
+            const input = document.getElementById('input-matricula');
+            const errorMsg = document.getElementById('error-login');
+            
+            if(input.value.trim().length < 3) {
+                errorMsg.style.display = 'block';
+            } else {
+                errorMsg.style.display = 'none';
+                cambiarVista('vista-espacios');
+                cargarEspacios();
+            }
+        }
+
+        function cargarEspacios() {
+            const contenedor = document.getElementById('lista-espacios');
+            contenedor.innerHTML = ''; 
+            espacios.forEach(espacio => {
+                const card = document.createElement('div');
+                card.className = `card ${espacio.disponible ? '' : 'ocupado'}`;
+                
+                let statusClase = espacio.disponible ? 'disponible' : 'ocupado';
+                let statusTexto = espacio.disponible ? 'Disponible' : 'En Uso';
+
+                card.innerHTML = `
+                    <h3>${espacio.nombre}</h3>
+                    <div class="status ${statusClase}">${statusTexto}</div>
+                    ${espacio.disponible ? `<button class="btn-primario" onclick="iniciarReserva(${espacio.id}, '${espacio.nombre}')">Reservar Espacio</button>` : `<button disabled style="background:transparent; border:1px solid rgba(255,255,255,0.2); color:#555;">No Disponible</button>`}
+                `;
+                contenedor.appendChild(card);
+            });
+        }
+
+        function iniciarReserva(id, nombre) {
+            espacioSeleccionado = { id, nombre };
+            cambiarVista('vista-tiempo');
+            document.getElementById('titulo-espacio-seleccionado').innerText = nombre;
+            
+            tiempoSeleccionado = null;
+            document.getElementById('btn-confirmar').style.display = 'none';
+            document.querySelectorAll('.btn-tiempo').forEach(btn => btn.classList.remove('seleccionado'));
+        }
+
+        function seleccionarTiempo(minutos, boton) {
+            tiempoSeleccionado = minutos;
+            document.querySelectorAll('.btn-tiempo').forEach(btn => btn.classList.remove('seleccionado'));
+            boton.classList.add('seleccionado');
+            document.getElementById('btn-confirmar').style.display = 'block';
+        }
+
+        function cancelarProceso() {
+            cambiarVista('vista-espacios');
+            espacioSeleccionado = null;
+        }
+
+        function confirmarReserva() {
+            cambiarVista('reserva-activa');
+            document.getElementById('nombre-reserva-activa').innerText = espacioSeleccionado.nombre;
+
+            const index = espacios.findIndex(e => e.id === espacioSeleccionado.id);
+            espacios[index].disponible = false;
+
+            // Resetear estilos de barra
+            document.getElementById('barra-progreso').style.background = 'var(--amarillo-fosfo)';
+            document.getElementById('barra-progreso').style.boxShadow = '0 0 10px var(--amarillo-fosfo)';
+            document.getElementById('timer').style.color = 'var(--amarillo-fosfo)';
+            document.getElementById('timer').style.textShadow = '0 0 25px rgba(212, 255, 51, 0.4)';
+
+            const qrText = `UL-ACCESO-${espacioSeleccionado.id}-${Date.now()}`;
+            document.getElementById("qr-container").innerHTML = ""; 
+            new QRCode(document.getElementById("qr-container"), {
+                text: qrText,
+                width: 220, height: 220,
+                colorDark : "#050505", colorLight : "#ffffff",
+                correctLevel : QRCode.CorrectLevel.H
+            });
+
+            iniciarTemporizador(tiempoSeleccionado);
+        }
+
+        function iniciarTemporizador(minutos) {
+            let tiempoRestante = minutos * 60; 
+            totalSegundosReserva = tiempoRestante;
+            
+            actualizarPantallaTimer(tiempoRestante);
+
+            timerInterval = setInterval(() => {
+                tiempoRestante--;
+                actualizarPantallaTimer(tiempoRestante);
+
+                if(tiempoRestante <= 0) {
+                    clearInterval(timerInterval);
+                    mostrarModalAgotado();
+                }
+            }, 1000); 
+        }
+
+        function actualizarPantallaTimer(segundosRestantes) {
+            let h = Math.floor(segundosRestantes / 3600);
+            let m = Math.floor((segundosRestantes % 3600) / 60);
+            let s = segundosRestantes % 60;
+            
+            let formato = h > 0 
+                ? `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
+                : `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+                
+            document.getElementById('timer').innerText = formato;
+
+            let porcentaje = (segundosRestantes / totalSegundosReserva) * 100;
+            document.getElementById('barra-progreso').style.width = porcentaje + '%';
+
+            if(porcentaje < 15) {
+                document.getElementById('barra-progreso').style.background = 'var(--rojo-suave)';
+                document.getElementById('barra-progreso').style.boxShadow = '0 0 15px var(--rojo-suave)';
+                document.getElementById('timer').style.color = 'var(--rojo-suave)';
+                document.getElementById('timer').style.textShadow = '0 0 25px rgba(255, 77, 77, 0.4)';
+            }
+        }
+
+        function mostrarModalAgotado() {
+            document.getElementById('modal-tiempo-agotado').style.display = 'flex';
+        }
+
+        function cerrarModalYCheckOut() {
+            document.getElementById('modal-tiempo-agotado').style.display = 'none';
+            simularCheckOut();
+        }
+
+        function simularCheckOut() {
+            clearInterval(timerInterval);
+            
+            if(espacioSeleccionado) {
+                const index = espacios.findIndex(e => e.id === espacioSeleccionado.id);
+                if(index !== -1) espacios[index].disponible = true;
+                espacioSeleccionado = null;
+            }
+
+            cambiarVista('vista-gracias');
+        }
+
+        function volverInicio() {
+            document.getElementById('input-matricula').value = '';
+            cambiarVista('vista-login');
+        }
+    </script>
+</body>
+</html>
