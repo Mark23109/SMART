@@ -102,6 +102,12 @@
             margin-bottom: 10px;
             border-radius: 8px;
             box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            cursor: pointer; /* Agregamos la manita para que sepan que es clickeable */
+            transition: transform 0.2s ease;
+        }
+
+        .header-logo:hover {
+            transform: scale(1.05); /* Pequeño efecto al pasar el mouse */
         }
 
         header h1 {
@@ -424,7 +430,7 @@
     <button class="btn-bluetooth" id="btn-bt" onclick="conectarBluetooth()">🔌 Conectar Hardware</button>
 
     <header>
-        <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQgFY_ZhyHLKK_DZdY2EsOITq98fKA5RKWRrA&s" alt="Logo Universidad de la Libertad" class="header-logo">
+        <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQgFY_ZhyHLKK_DZdY2EsOITq98fKA5RKWRrA&s" alt="Logo Universidad de la Libertad" class="header-logo" onclick="volverMenuEspacios()">
         <h1>U<span>L</span></h1>
         <p>Smart Spaces</p>
     </header>
@@ -509,29 +515,42 @@
     </div>
 
     <script>
-        // --- 1. LÓGICA DE BLUETOOTH IoT (ESTABLE) ---
+        // --- 1. LÓGICA DE BLUETOOTH IoT HÍBRIDO ---
         let bluetoothDevice;
         let bluetoothCharacteristic;
 
         async function conectarBluetooth() {
             try {
-                // Abrimos el buscador estándar (100% compatible y estable)
-                console.log('Abriendo buscador de Bluetooth...');
-                bluetoothDevice = await navigator.bluetooth.requestDevice({
-                    acceptAllDevices: true,
-                    optionalServices: [0xFFE0] // Servicio del JDY-08
-                });
+                let dispositivoRecordado = false;
 
-                // Agregamos un vigilante por si el hardware se desconecta de golpe
+                // 1. Intentamos conectar silenciosamente si el navegador ya recuerda la antena
+                if (navigator.bluetooth.getDevices) {
+                    const dispositivos = await navigator.bluetooth.getDevices();
+                    if (dispositivos.length > 0) {
+                        bluetoothDevice = dispositivos[0]; 
+                        dispositivoRecordado = true;
+                        console.log("Antena recordada encontrada. Conectando...");
+                    }
+                }
+
+                // 2. Si es la primera vez (o falló la memoria), abrimos el buscador de Chrome
+                if (!dispositivoRecordado) {
+                    console.log("Abriendo buscador manual...");
+                    bluetoothDevice = await navigator.bluetooth.requestDevice({
+                        acceptAllDevices: true,
+                        optionalServices: [0xFFE0]
+                    });
+                }
+
                 bluetoothDevice.addEventListener('gattserverdisconnected', alDesconectar);
 
                 // Hacemos la conexión física
-                console.log('Conectando al dispositivo...');
+                console.log('Estableciendo conexión...');
                 const server = await bluetoothDevice.gatt.connect();
                 const service = await server.getPrimaryService(0xFFE0);
                 bluetoothCharacteristic = await service.getCharacteristic(0xFFE1);
                 
-                // Éxito: Cambiamos el diseño del botón
+                // Éxito
                 const btnBt = document.getElementById('btn-bt');
                 btnBt.innerText = '✅ Hardware Conectado';
                 btnBt.style.backgroundColor = 'var(--amarillo-fosfo)';
@@ -540,14 +559,13 @@
                 
             } catch (error) {
                 console.error('Error de Bluetooth:', error);
-                // Si el usuario simplemente le dio "Cancelar" a la ventanita, no mostramos error molesto
                 if (error.name !== 'NotFoundError') {
-                    alert("Detalle técnico: " + error.message + "\n\nAsegúrate de que el Arduino esté encendido.");
+                    alert("Asegúrate de que el Arduino esté encendido y dale 'Reconectar'.");
                 }
+                bluetoothDevice = null;
             }
         }
 
-        // Función que se activa solita si se pierde la señal
         function alDesconectar() {
             console.log('¡Se perdió la conexión con el Arduino!');
             const btnBt = document.getElementById('btn-bt');
@@ -570,7 +588,27 @@
             }
         }
 
-        // --- 2. EVENTO PARA LA TECLA ENTER ---
+        // --- 2. FUNCIÓN DEL LOGO PARA VOLVER AL MENÚ ---
+        function volverMenuEspacios() {
+            // Si está en la pantalla de Login, no hace nada
+            if (document.getElementById('vista-login').classList.contains('activa')) return;
+
+            // Si está en una reserva activa, le avisa para no romper el cronómetro
+            if (document.getElementById('reserva-activa').classList.contains('activa')) {
+                alert("Tienes una reserva en curso. Por favor, termínala antes de salir.");
+                return;
+            }
+
+            // Limpiamos la memoria de la selección que dejó a medias
+            espacioSeleccionado = null;
+            tiempoSeleccionado = null;
+            
+            // Regresamos a la vista de los cubículos
+            cambiarVista('vista-espacios');
+            cargarEspacios();
+        }
+
+        // --- 3. EVENTO PARA LA TECLA ENTER ---
         document.getElementById('input-matricula').addEventListener('keypress', function (e) {
             if (e.key === 'Enter') {
                 e.preventDefault();
@@ -578,7 +616,7 @@
             }
         });
 
-        // --- 3. LÓGICA DE LA APLICACIÓN ---
+        // --- 4. LÓGICA DE LA APLICACIÓN ---
         let espacios = [
             { id: 1, nombre: "Cubículo 1", disponible: true },
             { id: 2, nombre: "Cubículo 2", disponible: true },
