@@ -509,32 +509,24 @@
     </div>
 
     <script>
-        // --- 1. LÓGICA DE BLUETOOTH IoT (CON RECONEXIÓN INTELIGENTE) ---
+        // --- 1. LÓGICA DE BLUETOOTH IoT (ESTABLE) ---
         let bluetoothDevice;
         let bluetoothCharacteristic;
 
         async function conectarBluetooth() {
             try {
-                // 1. Preguntamos si el navegador ya recuerda nuestra antena de veces anteriores
-                let dispositivosRecordados = await navigator.bluetooth.getDevices();
-                
-                if (dispositivosRecordados.length > 0) {
-                    // Si ya la conoce, la seleccionamos automáticamente sin abrir ventanas
-                    console.log('Hardware recordado encontrado. Conectando directo...');
-                    bluetoothDevice = dispositivosRecordados[0];
-                } else {
-                    // Si es la primera vez en la vida, abrimos el buscador normal
-                    console.log('Primera vez. Abriendo buscador de Bluetooth...');
-                    bluetoothDevice = await navigator.bluetooth.requestDevice({
-                        acceptAllDevices: true,
-                        optionalServices: [0xFFE0] // Servicio del JDY-08
-                    });
-                }
+                // Abrimos el buscador estándar (100% compatible y estable)
+                console.log('Abriendo buscador de Bluetooth...');
+                bluetoothDevice = await navigator.bluetooth.requestDevice({
+                    acceptAllDevices: true,
+                    optionalServices: [0xFFE0] // Servicio del JDY-08
+                });
 
                 // Agregamos un vigilante por si el hardware se desconecta de golpe
                 bluetoothDevice.addEventListener('gattserverdisconnected', alDesconectar);
 
                 // Hacemos la conexión física
+                console.log('Conectando al dispositivo...');
                 const server = await bluetoothDevice.gatt.connect();
                 const service = await server.getPrimaryService(0xFFE0);
                 bluetoothCharacteristic = await service.getCharacteristic(0xFFE1);
@@ -548,7 +540,10 @@
                 
             } catch (error) {
                 console.error('Error de Bluetooth:', error);
-                alert("No se pudo conectar. Asegúrate de tener encendido el Arduino y el Bluetooth de tu compu.");
+                // Si el usuario simplemente le dio "Cancelar" a la ventanita, no mostramos error molesto
+                if (error.name !== 'NotFoundError') {
+                    alert("Detalle técnico: " + error.message + "\n\nAsegúrate de que el Arduino esté encendido.");
+                }
             }
         }
 
