@@ -37,6 +37,7 @@
             overflow-x: hidden;
         }
 
+        /* CAPA 1: Malla estática */
         body::before {
             content: '';
             position: fixed;
@@ -48,13 +49,14 @@
             z-index: -1;
         }
 
+        /* CAPA 2: Brillo azul GPU */
         body::after {
             content: '';
             position: fixed;
             top: -10%; left: -10%; width: 120vw; height: 120vh;
             background: radial-gradient(circle at 50% 15%, rgba(0, 68, 129, 0.65) 0%, transparent 65%);
             z-index: -2;
-            animation: respiracionFluida 10s ease-in-out infinite alternate;
+            animation: respiracionFluida 15s ease-in-out infinite alternate;
         }
 
         @keyframes respiracionFluida {
@@ -62,7 +64,7 @@
             100% { opacity: 1; transform: scale(1.02); }
         }
 
-        /* Botón Bluetooth en la esquina */
+        /* Botón Bluetooth Inteligente */
         .btn-bluetooth {
             position: absolute;
             top: 20px;
@@ -507,23 +509,37 @@
     </div>
 
     <script>
-        // --- 1. LÓGICA DE BLUETOOTH IoT ---
+        // --- 1. LÓGICA DE BLUETOOTH IoT (CON RECONEXIÓN INTELIGENTE) ---
         let bluetoothDevice;
         let bluetoothCharacteristic;
 
         async function conectarBluetooth() {
             try {
-                // Solicitar dispositivo BLE (Usa los servicios estándar del JDY-08 / HM-10)
-                bluetoothDevice = await navigator.bluetooth.requestDevice({
-                    acceptAllDevices: true,
-                    optionalServices: [0xFFE0] // UUID de servicio para módulos BLE seriales
-                });
+                // 1. Preguntamos si el navegador ya recuerda nuestra antena de veces anteriores
+                let dispositivosRecordados = await navigator.bluetooth.getDevices();
+                
+                if (dispositivosRecordados.length > 0) {
+                    // Si ya la conoce, la seleccionamos automáticamente sin abrir ventanas
+                    console.log('Hardware recordado encontrado. Conectando directo...');
+                    bluetoothDevice = dispositivosRecordados[0];
+                } else {
+                    // Si es la primera vez en la vida, abrimos el buscador normal
+                    console.log('Primera vez. Abriendo buscador de Bluetooth...');
+                    bluetoothDevice = await navigator.bluetooth.requestDevice({
+                        acceptAllDevices: true,
+                        optionalServices: [0xFFE0] // Servicio del JDY-08
+                    });
+                }
 
+                // Agregamos un vigilante por si el hardware se desconecta de golpe
+                bluetoothDevice.addEventListener('gattserverdisconnected', alDesconectar);
+
+                // Hacemos la conexión física
                 const server = await bluetoothDevice.gatt.connect();
                 const service = await server.getPrimaryService(0xFFE0);
                 bluetoothCharacteristic = await service.getCharacteristic(0xFFE1);
                 
-                // Cambiar el estilo del botón si se conecta exitosamente
+                // Éxito: Cambiamos el diseño del botón
                 const btnBt = document.getElementById('btn-bt');
                 btnBt.innerText = '✅ Hardware Conectado';
                 btnBt.style.backgroundColor = 'var(--amarillo-fosfo)';
@@ -532,12 +548,22 @@
                 
             } catch (error) {
                 console.error('Error de Bluetooth:', error);
-                alert("No se pudo conectar. Asegúrate de tener encendido el módulo JDY-08.");
+                alert("No se pudo conectar. Asegúrate de tener encendido el Arduino y el Bluetooth de tu compu.");
             }
         }
 
+        // Función que se activa solita si se pierde la señal
+        function alDesconectar() {
+            console.log('¡Se perdió la conexión con el Arduino!');
+            const btnBt = document.getElementById('btn-bt');
+            btnBt.innerText = '🔌 Reconectar Hardware';
+            btnBt.style.backgroundColor = 'rgba(255, 77, 77, 0.2)';
+            btnBt.style.color = 'var(--rojo-suave)';
+            btnBt.style.border = '1px solid var(--rojo-suave)';
+            bluetoothCharacteristic = null;
+        }
+
         async function enviarSenalArduino(letraComando) {
-            // Si no hay Bluetooth conectado, la página sigue funcionando normal
             if (!bluetoothCharacteristic) return; 
             
             try {
