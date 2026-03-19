@@ -12,7 +12,7 @@
             --bg-oscuro: #050505;
             --blanco: #ffffff;
             --texto-secundario: #888888;
-            --azul-brillo: rgba(0, 68, 129, 0.50); /* Azul base intenso */
+            --azul-brillo: rgba(0, 68, 129, 0.50);
             --rojo-suave: #ff4d4d;
             --amarillo-fosfo: #d4ff33;
             --borde-sutil: rgba(255, 255, 255, 0.08);
@@ -37,7 +37,6 @@
             overflow-x: hidden;
         }
 
-        /* CAPA 1: La malla estática tecnológica */
         body::before {
             content: '';
             position: fixed;
@@ -49,7 +48,6 @@
             z-index: -1;
         }
 
-        /* CAPA 2: El brillo azul (Animación Fluida por GPU) */
         body::after {
             content: '';
             position: fixed;
@@ -62,6 +60,28 @@
         @keyframes respiracionFluida {
             0% { opacity: 0.3; transform: scale(0.98); }
             100% { opacity: 1; transform: scale(1.02); }
+        }
+
+        /* Botón Bluetooth en la esquina */
+        .btn-bluetooth {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(0,0,0,0.5);
+            border: 1px solid var(--borde-sutil);
+            color: var(--blanco);
+            padding: 8px 15px;
+            border-radius: 50px;
+            font-size: 12px;
+            cursor: pointer;
+            backdrop-filter: blur(5px);
+            transition: all 0.3s ease;
+            z-index: 100;
+        }
+
+        .btn-bluetooth:hover {
+            background: rgba(255,255,255,0.1);
+            border-color: var(--blanco);
         }
 
         header {
@@ -119,7 +139,6 @@
             color: var(--blanco);
         }
 
-        /* Vistas animadas */
         .vista {
             display: none;
             animation: fadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
@@ -134,7 +153,6 @@
             to { opacity: 1; transform: translateY(0) scale(1); }
         }
 
-        /* Glassmorphism unificado para todas las tarjetas */
         .card, .card-login, .card-reserva, .card-gracias, .modal-content {
             background: var(--bg-glass);
             backdrop-filter: blur(16px);
@@ -144,7 +162,6 @@
             border-radius: 24px;
         }
 
-        /* Vista Login */
         .card-login {
             padding: 50px 30px;
             max-width: 400px;
@@ -179,7 +196,6 @@
             display: none;
         }
 
-        /* Grid de Espacios */
         .espacios-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
@@ -235,7 +251,6 @@
             filter: grayscale(80%);
         }
 
-        /* Botones */
         button {
             background-color: var(--blanco);
             color: var(--bg-oscuro);
@@ -274,7 +289,6 @@
             box-shadow: 0 0 15px rgba(255, 77, 77, 0.3);
         }
 
-        /* Selector de Tiempo y Advertencia */
         .tiempo-opciones {
             display: flex;
             justify-content: center;
@@ -323,7 +337,6 @@
             backdrop-filter: blur(4px);
         }
 
-        /* Reserva Activa, QR y Progreso */
         .card-reserva, .card-gracias {
             padding: 50px 30px;
             max-width: 500px;
@@ -375,7 +388,6 @@
             font-size: 16px;
         }
 
-        /* Modal Personalizado */
         .modal-overlay {
             display: none;
             position: fixed;
@@ -406,6 +418,8 @@
     </style>
 </head>
 <body>
+
+    <button class="btn-bluetooth" id="btn-bt" onclick="conectarBluetooth()">🔌 Conectar Hardware</button>
 
     <header>
         <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQgFY_ZhyHLKK_DZdY2EsOITq98fKA5RKWRrA&s" alt="Logo Universidad de la Libertad" class="header-logo">
@@ -493,14 +507,57 @@
     </div>
 
     <script>
-        // --- EVENTO PARA LA TECLA ENTER ---
+        // --- 1. LÓGICA DE BLUETOOTH IoT ---
+        let bluetoothDevice;
+        let bluetoothCharacteristic;
+
+        async function conectarBluetooth() {
+            try {
+                // Solicitar dispositivo BLE (Usa los servicios estándar del JDY-08 / HM-10)
+                bluetoothDevice = await navigator.bluetooth.requestDevice({
+                    acceptAllDevices: true,
+                    optionalServices: [0xFFE0] // UUID de servicio para módulos BLE seriales
+                });
+
+                const server = await bluetoothDevice.gatt.connect();
+                const service = await server.getPrimaryService(0xFFE0);
+                bluetoothCharacteristic = await service.getCharacteristic(0xFFE1);
+                
+                // Cambiar el estilo del botón si se conecta exitosamente
+                const btnBt = document.getElementById('btn-bt');
+                btnBt.innerText = '✅ Hardware Conectado';
+                btnBt.style.backgroundColor = 'var(--amarillo-fosfo)';
+                btnBt.style.color = 'var(--bg-oscuro)';
+                btnBt.style.border = 'none';
+                
+            } catch (error) {
+                console.error('Error de Bluetooth:', error);
+                alert("No se pudo conectar. Asegúrate de tener encendido el módulo JDY-08.");
+            }
+        }
+
+        async function enviarSenalArduino(letraComando) {
+            // Si no hay Bluetooth conectado, la página sigue funcionando normal
+            if (!bluetoothCharacteristic) return; 
+            
+            try {
+                let encoder = new TextEncoder('utf-8');
+                await bluetoothCharacteristic.writeValue(encoder.encode(letraComando));
+                console.log('Señal enviada a Arduino:', letraComando);
+            } catch (error) {
+                console.error('Error al enviar señal:', error);
+            }
+        }
+
+        // --- 2. EVENTO PARA LA TECLA ENTER ---
         document.getElementById('input-matricula').addEventListener('keypress', function (e) {
             if (e.key === 'Enter') {
-                e.preventDefault(); // Evita que recargue la página si estuviera en un formulario
+                e.preventDefault();
                 iniciarSesion();
             }
         });
 
+        // --- 3. LÓGICA DE LA APLICACIÓN ---
         let espacios = [
             { id: 1, nombre: "Cubículo 1", disponible: true },
             { id: 2, nombre: "Cubículo 2", disponible: true },
@@ -595,6 +652,9 @@
             });
 
             iniciarTemporizador(tiempoSeleccionado);
+            
+            // ¡MAGIA IOT! Mandamos la señal al Arduino de que está reservado (Rojo)
+            enviarSenalArduino('R');
         }
 
         function iniciarTemporizador(minutos) {
@@ -655,6 +715,9 @@
             }
 
             cambiarVista('vista-gracias');
+            
+            // ¡MAGIA IOT! Mandamos la señal al Arduino de que está libre (Verde)
+            enviarSenalArduino('L');
         }
 
         function volverInicio() {
